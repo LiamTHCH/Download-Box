@@ -1,3 +1,5 @@
+# FOrw from [htpc-download-box by sebgl] (https://github.com/sebgl/htpc-download-box)
+
 # HTPC Download Box
 
 Sonarr / Radarr / Jackett / NZBGet / Deluge / OpenVPN / Plex
