@@ -86,3 +86,17 @@ services:
       - ${CONFIG}/config/bazarr:/config # config files
       - ${ROOT}/Film:/movies # movies folder
       - ${ROOT}/TV:/tv # tv shows folder
+
+
+  overseerr:
+    image: lscr.io/linuxserver/overseerr:latest
+    container_name: overseerr
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+    volumes:
+      - ${CONFIG}/config/overseerr:/config # config files
+    ports:
+      - 5055:5055
+    restart: unless-stopped
