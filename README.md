@@ -1,4 +1,4 @@
-# Fork from [htpc-download-box by sebgl] (#https://github.com/sebgl/htpc-download-box)
+# Fork from [ htpc-download-box by sebgl ](https://github.com/sebgl/htpc-download-box)
 
 # HTPC Download Box
 
