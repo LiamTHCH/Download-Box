@@ -22,20 +22,12 @@ All automated.
     - [Setup Deluge](#setup-deluge)
       - [Docker container](#docker-container)
       - [Configuration](#configuration)
-    - [Setup a VPN Container](#setup-a-vpn-container)
-      - [Introduction](#introduction)
-      - [privateinternetaccess.com custom setup](#privateinternetaccesscom-custom-setup)
-      - [Docker container](#docker-container-1)
     - [Setup Jackett](#setup-jackett)
       - [Docker container](#docker-container-2)
       - [Configuration and usage](#configuration-and-usage)
     - [Setup NZBGet](#setup-nzbget)
       - [Docker container](#docker-container-3)
       - [Configuration and usage](#configuration-and-usage)
-    - [Setup Plex](#setup-plex)
-      - [Media Server Docker Container](#media-server-docker-container)
-      - [Configuration](#configuration-1)
-      - [Setup Plex clients](#setup-plex-clients)
     - [Setup Sonarr](#setup-sonarr)
       - [Docker container](#docker-container-4)
       - [Configuration](#configuration-2)
@@ -103,26 +95,6 @@ Both are very standard and popular tools. I'm using them for their integration w
 
 For security and anonymity reasons, I'm running Deluge behind a VPN connection. All incoming/outgoing traffic from deluge is encrypted and goes out to an external VPN server. Other service stay on my local network. This is done through Docker networking stack (more to come on the next paragraphs).
 
-### Organize libraries and play videos with Plex
-
-[Plex](https://www.plex.tv/) Media Server organize all your medias as libraries. You can set up one for TV shows and another one for movies.
-It automatically grabs metadata for each new release (description, actors, images, release date).
-
-![Plex Web UI](img/plex_macbook.jpg)
-
-Plex keeps track of your position in the entire library: what episode of a given TV show season you've watched, what movie you've not watched yet, what episode was added to the library since last time. It also remembers where you stopped within a video file. Basically you can pause a movie in your bedroom, then resume playback from another device in your bathroom.
-
-Plex comes with [clients](https://www.plex.tv/apps/) in a lot of different systems (Web UI, Linux, Windows, OSX, iOS, Android, Android TV, Chromecast, PS4, Smart TV, etc.) that allow you to display and watch all your shows/movies in a nice Netflix-like UI.
-
-The server has transcoding abilities: it automatically transcodes video quality if needed (eg. stream your 1080p movie in 480p if watched from a mobile with low bandwidth).
-
-## Hardware configuration
-
-I'm using an old [Proliant MicroServer N54L](http://www.minimachines.net/promos-et-sorties/bon-plan-un-micro-serveur-hp-proliant-4-emplacements-a-169e-371) (2 cores, 2.20GHz) that I tweaked a bit to have 6GB RAM, an additional graphic card for better Full HD decoding, and an additional 2TB disk for data.
-
-It has Ubuntu 17.10.1 with Docker installed.
-
-You can also use a Raspberry Pi, a Synology NAS, a Windows or Mac computer. The stack should work fine on all these systems, but you'll have to adapt the Docker stack below to your OS. I'll only focus on a standard Linux installation here.
 
 ## Software stack
 
@@ -140,13 +112,9 @@ You can also use a Raspberry Pi, a Synology NAS, a Windows or Mac computer. The 
 - [Sonarr](https://sonarr.tv): manage TV show, automatic downloads, sort & rename
 - [Radarr](https://radarr.video): basically the same as Sonarr, but for movies
 
-**VPN**:
 
-- [OpenVPN](https://openvpn.net/) client configured with a [privateinternetaccess.com](https://www.privateinternetaccess.com/) access
 
-**Media Center**:
 
-- [Plex](https://plex.tv): media center server with streaming transcoding features, useful plugins and a beautiful UI. Clients available for a lot of systems (Linux/OSX/Windows, Web, Android, Chromecast, Android TV, etc.)
 
 ## Installation guide
 
@@ -273,118 +241,7 @@ Configuration gets stored automatically in your mounted volume (`${ROOT}/config/
 
 You can use the Web UI manually to download any torrent from a .torrent file or magnet hash.
 
-### Setup a VPN Container
 
-#### Introduction
-
-The goal here is to have an OpenVPN Client container running and always connected. We'll make Deluge incoming and outgoing traffic go through this OpenVPN container.
-
-This must come up with some safety features:
-
-1. VPN connection should be restarted if not responsive
-1. Traffic should be allowed through the VPN tunnel _only_, no leaky outgoing connection if the VPN is down
-1. Deluge Web UI should still be reachable from the local network
-
-Lucky me, someone already [set that up quite nicely](https://github.com/dperson/openvpn-client).
-
-Point 1 is resolved through the OpenVPN configuration (`ping-restart` set to 120 sec by default).
-Point 2 is resolved through [iptables rules](https://github.com/dperson/openvpn-client/blob/master/openvpn.sh#L52-L87)
-Point 3 is also resolved through [iptables rules](https://github.com/dperson/openvpn-client/blob/master/openvpn.sh#L104)
-
-Configuration is explained on the [project page](https://github.com/dperson/openvpn-client), you can follow it.
-However it is not that easy depending on your VPN server settings.
-I'm using a privateinternetaccess.com VPN, so here is how I set it up.
-
-#### privateinternetaccess.com custom setup
-
-_Note_: this section only applies for [PIA](https://privateinternetaccess.com) accounts.
-
-Download PIA OpenVPN [configuration files](https://privateinternetaccess.com/openvpn/openvpn.zip).
-In the archive, you'll find a bunch of `<country>.ovpn` files, along with 2 other important files: `crl.rsa.2048.pem` and `ca.rsa.2048.crt`. Pick the file associated to the country you'd like to connect to, for example `netherlands.ovpn`.
-
-Copy the 3 files to `${ROOT}/config/vpn`.
-Create a 4th file `vpn.auth` with the following content:
-
-```Text
-<pia username>
-<pia password>
-```
-
-You should now have 3 files in `${ROOT}/config/vpn`:
-
-- netherlands.ovpn
-- vpn.auth
-- crl.rsa.2048.pem
-- ca.rsa.2048.crt
-
-Edit `netherlands.ovpn` (or any other country of your choice) to tweak a few things (see my comments on lines added or modified):
-
-```INI
-client
-dev tun
-proto udp
-remote nl.privateinternetaccess.com 1198
-resolv-retry infinite
-nobind
-persist-key
-# persist-tun # disable to completely reset vpn connection on failure
-cipher aes-128-cbc
-auth sha1
-tls-client
-remote-cert-tls server
-auth-user-pass /vpn/vpn.auth # to be reachable inside the container
-comp-lzo
-verb 1
-reneg-sec 0
-crl-verify /vpn/crl.rsa.2048.pem # to be reachable inside the container
-ca /vpn/ca.rsa.2048.crt # to be reachable inside the container
-disable-occ
-keepalive 10 30 # send a ping every 10 sec and reconnect after 30 sec of unsuccessfull pings
-pull-filter ignore "auth-token" # fix PIA reconnection auth error that may occur every 8 hours
-```
-
-Then, rename `<country>.ovpn` to `vpn.conf`
-
-#### Docker container
-
-Put it in the docker-compose file, and make deluge use the vpn container network:
-
-```yaml
-vpn:
-  container_name: vpn
-  image: dperson/openvpn-client:latest
-  cap_add:
-    - net_admin # required to modify network interfaces
-  restart: unless-stopped
-  volumes:
-    - /dev/net:/dev/net:z # tun device
-    - ${ROOT}/config/vpn:/vpn # OpenVPN configuration
-  security_opt:
-    - label:disable
-  ports:
-    - 8112:8112 # port for deluge web UI to be reachable from local network
-  command: "-r 192.168.1.0/24" # route local network traffic
-
-deluge:
-  container_name: deluge
-  image: linuxserver/deluge:latest
-  restart: always
-  network_mode: service:vpn # run on the vpn network
-  environment:
-    - PUID=${PUID} # default user id, defined in .env
-    - PGID=${PGID} # default group id, defined in .env
-    - TZ=${TZ} # timezone, defined in .env
-  volumes:
-    - ${ROOT}/downloads:/downloads # downloads folder
-    - ${ROOT}/config/deluge:/config # config files
-```
-
-Notice how deluge is now using the vpn container network, with deluge web UI port exposed on the vpn container for local network access.
-
-You can check that deluge is properly going out through the VPN IP by using [torguard check](https://torguard.net/checkmytorrentipaddress.php).
-Get the torrent magnet link there, put it in Deluge, wait a bit, then you should see your outgoing torrent IP on the website.
-
-![Torrent guard](img/torrent_guard.png)
 
 ### Setup Jackett
 
@@ -466,74 +323,7 @@ Default configuration suits me well, but don't hesitate to have a look at the `P
 
 You can manually add .nzb files to download, but the goal is of course to have Sonarr and Radarr take care of it automatically.
 
-### Setup Plex
 
-#### Media Server Docker Container
-
-Luckily for us, Plex team already provides a maintained [Docker image for pms](https://github.com/plexinc/pms-docker).
-
-We'll use the host network directly, and run our container with the following configuration:
-
-```yaml
-plex-server:
-  container_name: plex-server
-  image: plexinc/pms-docker:latest
-  restart: unless-stopped
-  environment:
-    - TZ=${TZ} # timezone, defined in .env
-  network_mode: host
-  volumes:
-    - ${ROOT}/config/plex/db:/config # plex database
-    - ${ROOT}/config/plex/transcode:/transcode # temp transcoded files
-    - ${ROOT}/complete:/data # media library
-```
-
-Let's run it !
-`docker-compose up -d`
-
-#### Configuration
-
-Plex Web UI should be available at `localhost:32400/web` (replace `localhost` by your server ip if needed).
-
-Note: If you are running on a headless server (e.g. Synology NAS) with container using host networking, you will need to use ssh tunneling to gain access and setup the server for first run. (see https://forums.plex.tv/t/i-did-something-stupid-please-plex-forums-your-my-only-hope/328481/11)
-
-You'll have to login first (registration is free), then Plex will ask you to add your libraries.
-I have two libraries:
-
-- Movies
-- TV shows
-
-Make these the library paths:
-
-- Movies: `/data/movies`
-- TV: `/data/tv`
-
-As you'll see later, these library directories will each have files automatically placed into them with Radarr (movies) and Sonarr (tv), respectively.
-
-Now, Plex will then scan your files and gather extra content; it may take some time according to how large your directory is.
-
-A few things I like to configure in the settings:
-
-- Set time format to 24 hours (never understood why some people like 12 hours)
-- Tick "Update my library automatically"
-
-You can already watch your stuff through the Web UI. Note that it's also available from an authentified public URL proxified by Plex servers (see `Settings/Server/Remote Access`), you may note the URL or choose to disable public forwarding.
-
-#### Setup Plex clients
-
-Plex clients are available for most devices. I use it on my Android phone, my wife uses it on her iPhone, we use it on a Chromecast in the bedroom, and we also use Plex Media Center directly on the same computer where the server is running, close to the living room TV. It also works fine on the PS4 and on my Raspberry Pi. Nothing particular to configure, just download the app, log into it, enter the validation code and there you go.
-
-On a Linux Desktop, there are several alternatives.
-Historically, Plex Home Theater, based on XBMC/Kodi was the principal media player, and by far the client with the most features. It's quite comparable to XBMC/Kodi, but fully integrates with Plex ecosystem. Meaning it remembers what you're currently watching so that you can pause your movie in the bedroom while you continue watching it in the toilets \o/.
-Recently, Plex team decided to move towards a completely rewritten player called Plex Media Player. It's not officially available for Linux yet, but can be [built from sources](https://github.com/plexinc/plex-media-player). A user on the forums made [an AppImage for it](https://forums.plex.tv/discussion/278570/plex-media-player-packages-for-linux). Just download and run, it's plug and play. It has a very shiny UI, but lacks some features of PHT. For example: editing subtitles offset.
-
-![Plex Media Player](img/plex_media_player.jpg)
-
-If it does not suit you, there is also now an official [Kodi add-on for Plex](https://www.plex.tv/apps/computer/kodi/). [Download Kodi](http://kodi.wiki/view/HOW-TO:Install_Kodi_for_Linux), then browse add-ons to find Plex.
-
-Also the old good Plex Home Theater is still available, in an open source version called [OpenPHT](https://github.com/RasPlex/OpenPHT).
-
-Personal choice: after using OpenPHT for a while I'll give Plex Media Player a try. I might miss the ability to live-edit subtitle offset, but Bazarr is supposed to do its job. We'll see.
 
 ### Setup Sonarr
 
