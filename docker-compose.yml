@@ -100,3 +100,16 @@ services:
     ports:
       - 5055:5055
     restart: unless-stopped
+
+  qbittorrent:
+    container_name: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    network_mode: host # run on the vpn network
+    environment:
+      - PUID=${PUID} # default user id, defined in .env
+      - PGID=${PGID} # default group id, defined in .env
+      - TZ=${TZ} # timezone, defined in .env
+    volumes:
+      - ${ROOT}/downloads:/downloads # downloads folder
+      - ${CONFIG}/config/deluge:/config # config files
