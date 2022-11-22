@@ -112,4 +112,4 @@ services:
       - TZ=${TZ} # timezone, defined in .env
     volumes:
       - ${ROOT}/downloads:/downloads # downloads folder
-      - ${CONFIG}/config/deluge:/config # config files
+      - ${CONFIG}/config/qbittorrent:/config # config files
