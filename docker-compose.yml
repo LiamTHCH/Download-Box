@@ -113,3 +113,18 @@ services:
     volumes:
       - ${ROOT}/downloads:/downloads # downloads folder
       - ${CONFIG}/config/qbittorrent:/config # config files
+ 
+    organizr:
+        container_name: organizr
+        hostname: organizr
+        image: organizr/organizr:latest
+        restart: unless-stopped
+        ports:
+            - 80:80
+        volumes:
+            - ${CONFIG}/config/organizr:/config
+        environment:
+            - PUID=${PUID}
+            - PGID=${PGID}
+            - TZ=${TZ}
+
